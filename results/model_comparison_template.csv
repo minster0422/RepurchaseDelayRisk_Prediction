@@ -1,0 +1,5 @@
+model,feature_view,threshold_tuned_on_val,decision_threshold,accuracy,precision,recall,f1,roc_auc,average_precision,notes
+DummyClassifier,tabular,no,0.5,,,,,,baseline
+LogisticRegression,tabular,yes,,,,,,,aggregate baseline
+MLP,tabular,yes,,,,,,,aggregate neural model
+LSTM,sequential,yes,,,,,,,sequence model
