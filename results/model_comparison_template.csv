@@ -1,5 +1,5 @@
-model,feature_view,threshold_tuned_on_val,decision_threshold,accuracy,precision,recall,f1,roc_auc,average_precision,notes
-DummyClassifier,tabular,no,0.5,,,,,,baseline
-LogisticRegression,tabular,yes,,,,,,,aggregate baseline
-MLP,tabular,yes,,,,,,,aggregate neural model
-LSTM,sequential,yes,,,,,,,sequence model
+model,feature_view,threshold_tuned_on_val,decision_threshold,accuracy,precision,recall,f1,roc_auc,average_precision,final_candidate,selection_note
+DummyClassifier,tabular,no,0.5,,,,,,,minimum baseline
+LogisticRegression,tabular,yes,,,,,,,,high-recall baseline 여부 확인
+MLP,tabular,yes,,,,,,,,집계 특징만으로 충분한지 확인
+LSTM,sequential,yes,,,,,,,,순차 정보가 실제로 도움이 되는지 확인
