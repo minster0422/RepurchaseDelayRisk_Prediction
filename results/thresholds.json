@@ -1,0 +1,7 @@
+{
+  "dummy_classifier": 0.5,
+  "logistic_regression": 0.5200000000000001,
+  "mlp": 0.21000000000000002,
+  "lstm": null,
+  "_note": "LogisticRegression과 MLP는 validation set 기준 F1 최대 threshold를 사용했다. LSTM은 아직 미실행 상태다."
+}
