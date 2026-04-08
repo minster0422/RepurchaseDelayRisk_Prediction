@@ -48,8 +48,8 @@
 
 - 원시 Instacart 파일 기준으로 high-frequency threshold = 24를 다시 산출하기
 - `q90 = 15`와 현재 가공 데이터 사이의 불일치를 해소하기
-- LSTM용 순차 입력 생성 코드가 실제 실험 결과가 빠져 있다.
-- split 정보, threshold tuning 기록을 `results/`에 남길 구조 만들기
+- LSTM용 순차 입력 생성 규칙을 문서와 코드로 복원하기
+- train / val / test split 결과를 파일로 저장하기
 
 ## 발표자료에 꼭 넣을 숫자와 그래프
 
