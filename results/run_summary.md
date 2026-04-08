@@ -1,19 +1,27 @@
-# Run Summary
+# Tuned Run Summary
 
 - 데이터 파일: `model_base_hv.csv`
 - 샘플 수: 42,499
 - 양성 비율: 0.1865
 - 사용 feature 수: 13
+- 반복 seed 수: 5
+- MLP 후보 설정 수: 4
 
-## 모델별 결과
+## 선택된 최고 MLP 설정
+- hidden_layer_sizes: (128, 64)
+- alpha: 0.0001
+- learning_rate_init: 0.001
+- batch_size: 64
+
+## 최종 대표 실행 결과
 ### MLP
-- Threshold: 0.21
-- Precision: 0.3788
-- Recall: 0.6821
-- F1-score: 0.4871
-- ROC-AUC: 0.8017
-- Average Precision: 0.4547
-- Confusion Matrix: TN=3856, FP=1330, FN=378, TP=811
+- Threshold: 0.24
+- Precision: 0.4012
+- Recall: 0.6863
+- F1-score: 0.5064
+- ROC-AUC: 0.8179
+- Average Precision: 0.4663
+- Confusion Matrix: TN=3968, FP=1218, FN=373, TP=816
 
 ### LogisticRegression
 - Threshold: 0.52
