@@ -2,37 +2,34 @@
 
 ## 현재 잘된 점
 
-- [`model_base_hv.csv`](../model_base_hv.csv)는 발표용 기준 데이터로 바로 사용할 수 있을 만큼 열 구성이 정리돼 있다.
+- [`model_base_hv.csv`](../model_base_hv.csv)가 저장소 기준 데이터로 정리돼 있다.
 - `delay_risk` 라벨은 현재 CSV에서 `target_gap > 15` 규칙과 정확히 일치한다.
-- `target_order_number`의 최소값이 `24`라서, high-frequency threshold = 24 서사와는 맞는다.
-- 양성 비율이 약 `18.65%`라서, 불균형 데이터 해석의 필요성을 분명하게 보여줄 수 있다.
+- `target_order_number` 최소값이 `24`, `total_orders_before_target` 최소값이 `23`이라서 고빈도 고객 정의와 현재 샘플 구조가 자연스럽게 이어진다.
+- `README.md`, `docs/`, `results/`, 노트북 4개라는 발표용 구조 자체는 이미 잘 잡혀 있다.
 
 ## 현재 문제점
 
-- 이전 정리 과정에서 README와 노트북이 다시 인코딩 이슈를 겪어 발표용 문서 품질이 불안정했다.
-- 저장소 설명이 `model_base_hv.xlsx` 기준으로 남아 있었고, 이번에 제공된 CSV와 맞지 않았다.
-- `requirements.txt`는 비어 있었고, 저장소 흐름에 도움이 되지 않았다.
-- LSTM용 sequence 입력 생성 코드와 결과 파일이 없어, 순차 모델 비교는 아직 설계 문서 수준이다.
-- `q90 ≈ 15일` 설명은 현재 CSV 재계산값과 일치하지 않는다.
+- 루트 README와 일부 노트북, `results/README.md`에 한글 깨짐 또는 어색한 표현이 남아 있었다.
+- `q90 ≈ 15일` 기획 문구와 현재 CSV 재집계 결과(`q80 = 15`, `q90 = 24`, `q95 = 30`) 사이의 충돌 설명이 더 정교하게 정리될 필요가 있었다.
+- `03_train_lstm.ipynb`는 sequence 입력 생성 코드가 없어, 현재 실행 가능한 수준과 설계/가이드 수준의 구분이 더 분명해야 했다.
+- `results/` 폴더는 템플릿 구조는 괜찮지만, 실제 실행 후 어떤 파일이 추가돼야 하는지 안내가 더 필요했다.
 
 ## 반드시 수정해야 할 것
 
-- 저장소의 기준 데이터를 `model_base_hv.csv`로 통일하기
-- README와 4개 노트북을 CSV 기준으로 다시 작성하기
-- `feature` / `label` 시점 분리와 threshold 정의를 문서에서 더 명확히 드러내기
-- `LogisticRegression`, `MLP`, `LSTM`의 threshold tuning 공정성 기준을 동일하게 정리하기
-- 결과 해석에서 accuracy 중심 설명을 피하고 Recall / F1 / ROC-AUC / AP 중심으로 재정리하기
+- 한글 깨짐과 어색한 문장을 자연스러운 한국어로 복구하기
+- `15일 기준`과 `현재 재집계 분위수`의 충돌을 정직하고 일관되게 설명하기
+- 고빈도 고객 정의를 `상위 20%`, `threshold 24회` 기준으로 문서 전반에 통일하기
+- 노트북별 현재 역할과 한계를 더 명확하게 쓰기
+- 결과 템플릿은 유지하되, 아직 실제 수치는 비어 있다는 점을 분명히 밝히기
 
 ## 있으면 좋은 개선점
 
-- `results/thresholds.json`에 validation threshold 저장
-- `results/test_predictions_*.csv`에 모델별 test prediction 저장
+- `results/final_metrics.csv`에 최종 지표 저장
 - `results/roc_curve.png`, `results/pr_curve.png` 저장
-- 발표 슬라이드용 핵심 숫자와 그래프 체크리스트를 별도 문서로 유지
+- `results/confusion_matrix_mlp.png`, `results/confusion_matrix_lstm.png` 저장
+- `results/test_predictions_*.csv` 저장
 
-## 실제 점검 결과
-
-현재 CSV 기준 주요 수치는 다음과 같다.
+## 현재 확인 가능한 핵심 숫자
 
 | 항목 | 값 |
 | --- | --- |
@@ -41,16 +38,12 @@
 | 양성 수 | 7,926 |
 | 양성 비율 | 18.65% |
 | `target_order_number` 최소값 | 24 |
-| `target_order_number` 최대값 | 100 |
+| `total_orders_before_target` 최소값 | 23 |
 | `target_gap` q80 | 15 |
 | `target_gap` q90 | 24 |
 | `target_gap` q95 | 30 |
 
-## 가장 중요한 해석상 이슈
+## 해석상 주의점
 
-현재 CSV를 기준으로 하면 `target_gap > 15` 규칙은 맞지만, `q90 ≈ 15일`은 재현되지 않는다. 따라서 발표에서는 아래처럼 분리해서 설명하는 것이 안전하다.
-
-- **현재 저장소 기준 사실**: `target_gap > 15 -> delay_risk = 1`, q80 = 15, q90 = 24
-- **발표 기획 기준 서사**: `15일`을 지연 위험 기준으로 두고, 기존 전처리 단계에서는 q90 근거였다고 설명
-
-즉, 이 부분은 숨기기보다 `NOTE`로 명시하는 편이 더 설득력 있다.
+- 현재 저장소에서 사실처럼 말할 수 있는 것은 `target_gap > 15` 운영 라벨 기준과 현재 CSV 재집계 결과다.
+- 따라서 **15일 기준은 현재 가공 데이터에서 q80 수준**이며, **기존 `q90 ≈ 15일` 설명은 재검증 필요**라고 정리하는 것이 가장 안전하다.
