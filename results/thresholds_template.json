@@ -1,0 +1,6 @@
+{
+  "logistic_regression": null,
+  "mlp": null,
+  "lstm": null,
+  "_note": "validation set에서 선택한 threshold만 기록한다."
+}
