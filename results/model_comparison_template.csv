@@ -1,0 +1,5 @@
+model,feature_view,threshold_tuned_on_val,decision_threshold,accuracy,precision,recall,f1,roc_auc,average_precision,selected_as_final_candidate,interpretation_note
+DummyClassifier,tabular,no,0.5,,,,,,,최소 기준선
+LogisticRegression,tabular,yes,,,,,,,,"Recall이 높다면 기준선으로 의미가 있는지 확인"
+MLP,tabular,yes,,,,,,,,"집계 특징만으로 충분한지 확인"
+LSTM,sequential,yes,,,,,,,,"순차 정보가 실제로 도움이 되는지 확인"
