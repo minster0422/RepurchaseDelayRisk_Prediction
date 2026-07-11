@@ -1,0 +1,2 @@
+﻿label_name,delay_days,positive_count,positive_ratio,train_samples,validation_samples,test_samples,model,decision_threshold,val_best_f1,best_val_average_precision,accuracy,precision,recall,f1_score,roc_auc,average_precision,tn,fp,fn,tp,epochs_trained
+delay_gt_24_q90,24,4207,0.098991,29749,6375,6375,HybridGRU_q90,0.71,0.412022,0.338049,0.831216,0.316872,0.610143,0.417118,0.850657,0.337171,4914,830,246,385,31

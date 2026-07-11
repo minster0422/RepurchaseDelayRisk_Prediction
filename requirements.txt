@@ -1,5 +1,13 @@
+numpy
 pandas
 scikit-learn
 matplotlib
+seaborn
+python-pptx
+pillow
+python-docx
 jupyter
 torch
+lightgbm
+xgboost
+catboost

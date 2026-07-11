@@ -1,0 +1,40 @@
+{
+  "_note": "DummyClassifier는 고정 threshold 0.5를 사용하고, 나머지 모델은 validation F1 최대 기준으로 threshold를 선택한다.",
+  "_split": {
+    "method": "stratified random split",
+    "train": 29749,
+    "validation": 6375,
+    "test": 6375,
+    "random_state": 42
+  },
+  "DummyClassifier": {
+    "threshold_tuned_on_val": false,
+    "decision_threshold": 0.5,
+    "val_best_f1": null
+  },
+  "LogisticRegression": {
+    "threshold_tuned_on_val": true,
+    "decision_threshold": 0.5200000000000001,
+    "val_best_f1": 0.45500848896434637
+  },
+  "MLP": {
+    "threshold_tuned_on_val": true,
+    "decision_threshold": 0.24000000000000005,
+    "val_best_f1": 0.5151231680698473
+  },
+  "LightGBM": {
+    "threshold_tuned_on_val": true,
+    "decision_threshold": 0.5500000000000002,
+    "val_best_f1": 0.5156964340140201
+  },
+  "XGBoost": {
+    "threshold_tuned_on_val": true,
+    "decision_threshold": 0.5800000000000002,
+    "val_best_f1": 0.5148331273176762
+  },
+  "CatBoost": {
+    "threshold_tuned_on_val": true,
+    "decision_threshold": 0.5800000000000002,
+    "val_best_f1": 0.5207286432160804
+  }
+}
