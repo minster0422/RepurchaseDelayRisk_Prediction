@@ -19,6 +19,27 @@ Instacart 주문 이력을 사용해 **고빈도 고객의 다음 주문이 지�
 - [최종 모델 비교 결과](./results/final_model_comparison.csv)
 - [전처리 요약](./docs/preprocessing_summary.md)
 
+## 핵심 성과 요약
+
+| 항목 | 내용 |
+| --- | --- |
+| 문제 유형 | 고빈도 고객의 다음 주문 지연 위험 이진 분류 |
+| 최종 모델링 샘플 | 42,499명 |
+| 양성 클래스 비율 | 18.65% |
+| 비교 범위 | tabular baseline, sequence-only, hybrid deep learning 총 19개 모델/설정 |
+| 최종 딥러닝 후보 | HybridGRU |
+| HybridGRU 성능 | Precision 0.4116 / Recall 0.6972 / F1 0.5176 / ROC-AUC 0.8220 |
+| 운영 관점 해석 | 위험 예측 고객군의 실제 지연 고객 밀도가 전체 평균 대비 약 2.2배 |
+
+## 프로젝트에서 수행한 작업
+
+- Instacart 주문 이력을 이용해 `target_gap > 15` 기반의 재구매 지연 위험 label을 정의했습니다.
+- target 주문 이전 이력만 feature로 사용해 feature-label 시점 분리를 유지했습니다.
+- 고객 요약 feature 기반 tabular baseline과 최근 주문 sequence 기반 딥러닝 모델을 모두 비교했습니다.
+- GRU branch와 MLP branch를 결합한 HybridGRU를 구현해 sequence-only 모델 대비 개선 여부를 확인했습니다.
+- ROC/PR curve, confusion matrix, threshold sensitivity, 오류 분석, feature importance를 함께 정리했습니다.
+- 최종 발표 이후 교수님 피드백을 반영해 auxiliary-loss HybridGRU 개선 방향까지 문서화했습니다.
+
 ## 1. 문제 배경
 
 온라인 장보기 서비스에서 반복 구매가 많은 고객은 고가치 고객일 가능성이 높습니다. 이런 고객의 주문 간격이 길어지는 것은 구매 빈도 감소나 장기 미구매의 초기 신호로 볼 수 있습니다.
@@ -247,6 +268,15 @@ python train_hybrid_deep_models.py
 python summarize_final_model_results.py
 python analyze_hybridgru_errors.py
 ```
+
+| 실행 파일 | 주요 산출물 |
+| --- | --- |
+| `train_tabular_baselines.py` | `results/tabular_model_comparison.csv`, `results/tabular_roc_curve.png`, `results/tabular_pr_curve.png` |
+| `train_deep_sequence_models.py` | `results/deep_sequence_model_comparison.csv`, `results/deep_sequence_model_summary.md` |
+| `train_hybrid_deep_models.py` | `results/hybrid_deep_model_comparison.csv`, `results/hybrid_deep_model_summary.md` |
+| `summarize_final_model_results.py` | `results/final_model_comparison.csv`, `results/final_model_comparison.png` |
+| `analyze_hybridgru_errors.py` | `results/hybridgru_error_analysis_summary.md`, `results/final_hybridgru_confusion_matrix.png` |
+| `sensitivity_delay_threshold.py` | `results/delay_threshold_sensitivity.csv`, `results/delay_threshold_sensitivity_summary.md` |
 
 노트북 설명은 [`notebooks/`](./notebooks/) 폴더에서 확인할 수 있습니다.
 
