@@ -44,6 +44,12 @@ Instacart 주문 이력을 사용해 **고빈도 고객의 다음 주문이 지�
 
 현재 저장소의 기준 데이터는 [`model_base_hv.csv`](./model_base_hv.csv)입니다. 같은 데이터를 확인하기 위한 보조 파일로 [`model_base_hv.xlsx`](./model_base_hv.xlsx)도 포함했습니다.
 
+`model_base_hv.csv`는 팀원이 Instacart 원본 주문 데이터를 SQL 기반으로 전처리해 만든 모델링용 테이블입니다. 원본 전처리 흐름과 초기 문제 정의는 아래 저장소에서 확인할 수 있습니다.
+
+- Preprocessing reference: [dlwogud/High-Value-Customer-Churn-Prediction](https://github.com/dlwogud/High-Value-Customer-Churn-Prediction)
+
+이 저장소에서는 위 전처리 결과를 출발점으로 삼아, 최종 모델링 데이터 기준의 라벨 분위수를 다시 확인하고 tabular baseline, sequence-only deep learning, hybrid deep learning 실험을 확장했습니다. 따라서 라벨 기준과 최종 성능 해석은 본 저장소의 `model_base_hv.csv` 재집계 결과를 기준으로 합니다.
+
 ## 3. 예측 문제 정의
 
 이 프로젝트에서 가장 중요한 설계 원칙은 **feature와 label의 시점 분리**입니다.
