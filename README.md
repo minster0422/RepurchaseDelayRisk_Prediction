@@ -1,133 +1,149 @@
-# Repurchase Delay Risk Prediction
+# 고빈도 고객의 재구매 지연 위험 예측
 
-## 1. 프로젝트 개요
+**Repurchase Delay Risk Prediction with Instacart**
 
-이 프로젝트는 Instacart 주문 이력을 바탕으로, **고빈도 고객의 다음 주문이 평소보다 오래 지연될 위험**을 예측하는 것을 목표로 한다. 발표 서사는 단순 분류 문제가 아니라, **과거 주문 이력으로 다음 주문의 지연 위험을 미리 탐지하는 예측 프로젝트**로 구성한다.
+Instacart 주문 이력을 사용해 **고빈도 고객의 다음 주문이 지연될 위험**을 예측한 딥러닝 응용 프로젝트입니다.
+단순히 고객을 분류하는 것이 아니라, **target 주문 이전의 과거 주문 이력만으로 다음 주문의 지연 위험을 예측**하는 구조를 목표로 했습니다.
 
-현재 저장소의 기준 데이터는 고빈도 고객 집계 특징과 라벨이 담긴 [`model_base_hv.csv`](./model_base_hv.csv)다. [`model_base_hv.xlsx`](./model_base_hv.xlsx)는 같은 데이터를 확인하기 위한 보조 파일로 둔다.
+최종 발표에서는 tabular baseline, sequence-only deep learning, hybrid deep learning을 비교했고, 최종 딥러닝 후보로 **HybridGRU**를 선정했습니다.
 
-`최종 발표 이후 정리 메모`
+## 프로젝트 한 줄 요약
 
-- 최종 발표에서는 tabular baseline, sequence-only deep learning, hybrid deep learning을 함께 비교했다.
-- 최종 딥러닝 후보는 `HybridGRU`로 정리하되, CatBoost와의 차이가 크지 않다는 점을 함께 명시한다.
-- 발표 후 모델 설계 피드백에 따라, 향후에는 branch별 auxiliary loss를 추가한 HybridGRU를 개선 실험으로 둔다.
-- GitHub 업로드 전 정리 기준은 [`docs/github_upload_checklist.md`](./docs/github_upload_checklist.md)에 둔다.
-- 최종 발표 기준 요약은 [`docs/final_project_summary.md`](./docs/final_project_summary.md), 모델 설계 피드백은 [`docs/model_design_feedback.md`](./docs/model_design_feedback.md)에 정리했다.
+고빈도 고객의 과거 주문 패턴을 바탕으로, 다음 주문이 15일을 초과해 늦어질 가능성을 예측하고 고객 유지 전략의 우선순위를 정하는 모델을 만들었습니다.
 
-## 2. 문제 정의
+## 바로 보기
 
-핵심 문제는 다음과 같다.
+- [최종 발표자료 PDF](./presentation/딥러닝_프로젝트_발표자료_이민성팀.pdf)
+- [최종 프로젝트 요약](./docs/final_project_summary.md)
+- [모델 설계 피드백과 개선안](./docs/model_design_feedback.md)
+- [최종 모델 비교 결과](./results/final_model_comparison.csv)
+- [전처리 요약](./docs/preprocessing_summary.md)
 
-> 과거 주문 이력만을 사용해, 고빈도 고객의 **다음 주문이 지연 위험 상태에 들어갈지** 예측할 수 있는가?
+## 1. 문제 배경
 
-발표에서는 아래 두 가지를 분명히 보여주는 것이 중요하다.
+온라인 장보기 서비스에서 반복 구매가 많은 고객은 고가치 고객일 가능성이 높습니다. 이런 고객의 주문 간격이 길어지는 것은 구매 빈도 감소나 장기 미구매의 초기 신호로 볼 수 있습니다.
 
-- `feature`와 `label`의 시점을 분리한다.
-- `target` 주문은 라벨 생성용으로만 사용하고, 입력 특징은 반드시 **target 주문 이전 이력**에서 만든다.
+이 프로젝트의 목표는 다음과 같습니다.
 
-즉, 이 프로젝트의 구조는 "현재 주문을 설명하는 분류"가 아니라, **다음 주문의 지연 위험을 예측하는 구조**여야 한다.
+> 고빈도 고객의 과거 주문 이력을 사용해, 다음 주문이 평소보다 늦어질 위험을 미리 예측할 수 있는가?
 
-## 3. 왜 Instacart 데이터인가
+모델의 출력은 고객별 `delay_risk score`이며, 실제 활용 관점에서는 쿠폰, 알림, 추천 캠페인처럼 비용이 드는 고객 유지 전략을 **누구에게 먼저 적용할지** 정하는 데 사용할 수 있습니다.
 
-Instacart는 반복 구매가 많은 식료품 주문 데이터이기 때문에, 재구매 간격과 고객별 주문 습관을 비교적 자연스럽게 관찰할 수 있다. 특히 `days_since_prior_order`를 통해 다음 주문까지의 간격을 정의할 수 있어, 재구매 지연 위험 예측 문제를 설계하기에 적합하다.
+## 2. 데이터셋
 
-다만 Instacart에는 직접적인 구매 금액 정보가 없기 때문에, 본 프로젝트는 "고가치 고객"보다 **고빈도 고객**이라는 표현이 더 정직하다.
+사용한 데이터는 Instacart 공개 주문 데이터입니다. Instacart는 미국 온라인 장보기 서비스이며, 데이터에는 고객별 주문 순서, 주문 요일, 주문 시간, 직전 주문 이후 경과일이 포함되어 있습니다.
 
-## 4. 고빈도 고객 정의
+| 항목 | 값 |
+| --- | ---: |
+| 전체 고객 수 | 206,209명 |
+| 전체 주문 수 | 3,421,083건 |
+| 최종 모델링 샘플 수 | 42,499명 |
+| 고빈도 고객 기준 | 총 주문 횟수 상위 20% |
+| 실제 threshold | 24회 |
+| positive ratio | 18.65% |
 
-발표용 기준 정의는 다음과 같다.
+현재 저장소의 기준 데이터는 [`model_base_hv.csv`](./model_base_hv.csv)입니다. 같은 데이터를 확인하기 위한 보조 파일로 [`model_base_hv.xlsx`](./model_base_hv.xlsx)도 포함했습니다.
 
-- 전체 고객 중 **총 주문 횟수 상위 20%**를 고빈도 고객으로 본다.
-- 최종 모델링 데이터 기준 이 경계는 **주문 횟수 24회**다.
+## 3. 예측 문제 정의
 
-현재 저장소에 남아 있는 [`model_base_hv.csv`](./model_base_hv.csv)를 보면 `target_order_number`의 최소값이 24이므로, **최종 모델링 데이터에는 threshold = 24**가 반영되어 있다.
+이 프로젝트에서 가장 중요한 설계 원칙은 **feature와 label의 시점 분리**입니다.
 
-## 5. 타깃 정의
+```text
+target 이전 주문 이력  ->  feature 생성
+target 주문의 실제 gap ->  label 생성
+```
 
-현재 프로젝트의 타깃은 절대 기준형 이진 분류다.
+예를 들어 어떤 고객의 25번째 주문을 target으로 둔다면, 모델은 24번째 주문까지의 기록만 보고 25번째 주문이 지연될지 예측합니다.
+`target_gap`은 모델 입력 변수가 아니라 정답 label을 만들기 위한 변수입니다.
 
-- `target_gap > 15` 이면 `delay_risk = 1`
-- 그렇지 않으면 `delay_risk = 0`
+## 4. 타깃 정의
 
-즉, 특정 target 주문의 실제 재구매 간격이 15일을 초과하면 지연 위험군으로 본다.
+최종 라벨은 다음과 같이 정의했습니다.
 
-`NOTE`
+```text
+target_gap > 15  ->  delay_risk = 1
+target_gap <= 15 ->  delay_risk = 0
+```
 
-- 현재 최종 모델링 데이터에서 고빈도 고객의 `target_gap` 분위수는 **q80 = 15, q90 = 24, q95 = 30**이다.
-- 따라서 `15일` 기준은 q90 기준이 아니라, **q80 수준의 조기탐지 기준**으로 해석한다.
-- q90 기준인 `24일`은 더 엄격한 고위험 지연 기준이 될 수 있으므로, 최종 정리에서는 `15일(q80)` 조기 탐지 기준과 `24일(q90)` 고위험 기준을 구분해 설명한다.
+현재 최종 모델링 데이터에서 `target_gap` 분위수는 아래와 같습니다.
 
-발표 자료에서는 `target_gap > 15`를 "위험 고객을 너무 좁게 잡기보다 조기 탐지를 우선한 운영 라벨 기준"으로 설명하는 편이 가장 안전하다.
+| 분위수 | 일수 | 해석 |
+| --- | ---: | --- |
+| q80 | 15일 | 약 80%의 target_gap이 15일 이하 |
+| q90 | 24일 | 더 엄격한 고위험 기준 후보 |
+| q95 | 30일 | 매우 긴 지연 구간 |
 
-## 6. 데이터 전처리 개요
+따라서 15일 기준은 q90 기준이 아니라, **q80 수준의 조기 탐지 기준**입니다. q90인 24일 기준은 별도의 민감도 분석 대상으로 두었습니다.
 
-전처리의 핵심 원칙은 아래와 같다.
+## 5. 입력 feature 구성
 
-- 고객별로 하나의 `target` 주문을 잡는다.
-- `label`은 그 target 주문의 `target_gap`으로 만든다.
-- `feature`는 target 주문 이전 이력만 사용해 만든다.
-- 데이터 누수를 막기 위해, target 이후 정보는 어떤 형태로도 입력에 포함하지 않는다.
+두 종류의 입력을 사용했습니다.
 
-현재 포함된 가공 데이터 [`model_base_hv.csv`](./model_base_hv.csv)는 다음과 같은 **집계 특징 기반 표 형태**다.
+### 고객 요약 feature
 
-- 원본 전체 고객 수: 206,209명
-- 원본 전체 주문 수: 3,421,083건
-- 고빈도 고객 수: 42,499명
-- 샘플 수: 42,499
-- 양성 수: 7,926
-- 현재 확인된 양성 비율: 약 18.65%
-- 현재 확인된 구조: 사용자당 1행
-- 주요 열: `avg_gap_before_target`, `std_gap_before_target`, `recent_3_avg_gap`, `recent_5_avg_gap`, `gap_trend`, `order_frequency`, `weekend_order_ratio`
+target 주문 이전 이력을 하나의 벡터로 요약한 feature입니다.
 
-즉, 현재 저장소 기준으로는 **DummyClassifier / LogisticRegression / MLP / Tree Boosting 계열 모델을 위한 집계형 입력**과 **LSTM/GRU/TCN/Transformer 계열 순차 모델 및 하이브리드 모델을 위한 sequence 입력 생성 코드**가 모두 존재한다. 다만 GitHub 업로드 시에는 최종 발표에 사용한 코드와 결과만 선별해 정리하는 것이 좋다.
+| feature 예시 | 의미 |
+| --- | --- |
+| `total_orders_before_target` | target 이전 주문 수 |
+| `avg_gap_before_target` | 평균 주문 간격 |
+| `recent_3_avg_gap` | 최근 3회 주문 간격 평균 |
+| `recent_5_avg_gap` | 최근 5회 주문 간격 평균 |
+| `last_gap_before_target` | target 직전 주문 간격 |
+| `gap_trend` | 최근 주문 간격 변화 추세 |
+| `active_span_days` | target 이전 고객 활동 기간 |
+| `weekend_order_ratio` | 주말 주문 비율 |
 
-## 7. 모델 구성
+### 주문 sequence 입력
 
-최종 발표 기준 비교 모델은 세 그룹으로 정리한다.
+최근 20개 주문을 순서대로 사용했습니다.
 
-- `Tabular baseline`
-  - `DummyClassifier`, `LogisticRegression`, `MLP`, `CatBoost`, `LightGBM`, `XGBoost`
-  - 고객 요약 feature만으로 재구매 지연 위험을 어느 정도 예측할 수 있는지 확인한다.
-- `Sequence-only deep learning`
-  - `LSTM`, `GRU`, `BiGRU`, `TCN`, `TransformerEncoder`
-  - 최근 주문 sequence만으로 지연 위험을 예측할 수 있는지 확인한다.
-- `Hybrid deep learning`
-  - `HybridLSTM`, `HybridGRU`, `HybridBiGRU`, `HybridTCN`, `HybridTransformer`
-  - 고객 요약 feature와 최근 주문 sequence를 함께 사용했을 때 sequence-only 모델보다 개선되는지 확인한다.
+| sequence 설정 | 내용 |
+| --- | --- |
+| sequence length | 최근 20개 주문 |
+| per-order features | gap, gap_delta, 최근 3회 gap 평균 |
+| time encoding | 주문 요일/시간의 sin, cos 변환 |
+| relative position | target 이전 주문 내 상대적 위치 |
 
-발표의 핵심 비교 질문은 다음과 같다.
+요약 feature는 고객의 장기 구매 성향을 잘 보여주고, sequence 입력은 주문 간격이 어떤 순서로 변했는지를 직접 보여줍니다.
 
-> **고객의 장기 구매 성향과 최근 주문 흐름을 함께 보면, sequence-only 모델보다 더 균형적인 지연 위험 예측이 가능한가?**
+## 6. 실험 설계
 
-최종 발표에서는 `HybridGRU`를 딥러닝 최종 후보로 정리했다. 다만 이는 모든 지표에서 압도적으로 우수한 모델이라는 뜻이 아니라, 문제 구조에 가장 잘 맞고 F1-score 기준 가장 균형적인 결과를 보인 후보라는 의미다.
+세 그룹의 모델을 비교했습니다.
 
-## 8. 실험 설정
+| 모델군 | 사용 모델 | 실험 목적 |
+| --- | --- | --- |
+| Tabular baseline | DummyClassifier, LogisticRegression, MLP, CatBoost, LightGBM, XGBoost | 고객 요약 feature만으로 어느 정도 예측 가능한지 확인 |
+| Sequence-only deep learning | LSTM, GRU, BiGRU, TCN, TransformerEncoder | 최근 주문 sequence만으로 예측 가능한지 확인 |
+| Hybrid deep learning | HybridLSTM, HybridGRU, HybridBiGRU, HybridTCN, HybridTransformer | 고객 요약 feature와 sequence 정보를 결합했을 때 개선되는지 확인 |
 
-현재 저장소의 모델링 테이블은 사용자당 1행이므로, `train / val / test` 분할은 곧 사용자 단위 분할로 해석할 수 있다. 권장 재현 구조는 아래 기준으로 정리한다.
+split은 `train / validation / test = 70 / 15 / 15`입니다.
 
-- split 단위: 사용자 단위. 현재 데이터가 사용자당 1행이기 때문에 같은 사용자가 여러 split에 동시에 들어가지 않는다.
-- split 방식: `train / val / test = 70 / 15 / 15`
-- 분할 원칙: `delay_risk` 비율을 유지하는 stratified random split
-- 예상 샘플 수: train 29,749 / validation 6,375 / test 6,375
-- 주의점: calendar date 기준 time split은 아니다. 대신 target 주문을 라벨로만 사용하고, feature는 target 이전 이력만 사용해 시점 누수를 줄인다.
-- threshold tuning:
-  - `DummyClassifier`는 고정 기준선으로 둔다.
-  - `LogisticRegression`, `MLP`, `LightGBM`, `XGBoost`, `CatBoost`는 **동일하게 validation set에서 F1-score 기준 threshold tuning**을 수행한다.
+| split | 샘플 수 | 용도 |
+| --- | ---: | --- |
+| train | 29,749 | 모델 학습 |
+| validation | 6,375 | threshold tuning 및 모델 선택 |
+| test | 6,375 | 최종 성능 평가 |
 
-평가 지표는 accuracy보다 아래 지표를 우선한다.
+현재 데이터는 사용자당 1행이므로 같은 고객이 여러 split에 동시에 들어가지 않습니다. 다만 실제 서비스 적용을 위해서는 시간 기준 검증이 더 엄격합니다.
 
-- `Recall`: 위험 고객을 놓치지 않는 정도
-- `F1-score`: precision과 recall의 균형
-- `ROC-AUC`: threshold에 덜 의존하는 분리 성능
-- `Average Precision` 또는 `PR curve`: 양성 클래스 탐지 품질
+## 7. 평가 지표
 
-정리하면, 이 프로젝트는 불균형 데이터이므로 **accuracy 단독 비교를 피하고 Recall / F1 / ROC-AUC / AP를 중심으로 해석**해야 한다.
+positive class 비율이 18.65%인 불균형 데이터이므로 accuracy만으로 평가하지 않았습니다.
 
-## 9. 결과 요약
+| 지표 | 사용 이유 |
+| --- | --- |
+| Recall | 실제 지연 고객을 얼마나 놓치지 않는지 확인 |
+| Precision | 위험으로 예측한 고객 중 실제 지연 고객 비율 확인 |
+| F1-score | Precision과 Recall의 균형 확인 |
+| ROC-AUC | threshold 전반의 구분 능력 확인 |
+| Average Precision | positive class가 적을 때 ranking 품질 확인 |
 
-현재 루트 [`results/`](./results/) 폴더에는 tabular baseline, sequence-only deep learning, hybrid deep learning 결과가 함께 정리되어 있다. 최종 비교 기준 파일은 [`results/final_model_comparison.csv`](./results/final_model_comparison.csv)다.
+모델별 decision threshold는 validation set에서 F1-score가 가장 높아지는 기준으로 선택했습니다.
 
-핵심 결과는 다음과 같다.
+## 8. 최종 결과
+
+최종 비교 결과는 [`results/final_model_comparison.csv`](./results/final_model_comparison.csv)에 정리했습니다.
 
 | model | precision | recall | f1_score | roc_auc | average_precision |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -138,55 +154,97 @@ Instacart는 반복 구매가 많은 식료품 주문 데이터이기 때문에,
 | MLP | 0.4012 | 0.6863 | 0.5064 | 0.8179 | 0.4663 |
 | LSTM | 0.3626 | 0.6173 | 0.4569 | 0.7604 | 0.4179 |
 
-지표별 강점은 다르게 나타난다.
+![Final model comparison](./results/final_model_comparison.png)
+
+### 지표별 해석
 
 - `HybridGRU`: F1-score 기준 가장 높은 균형 성능
 - `LightGBM`: Recall 기준 가장 많은 지연 고객 탐지
 - `XGBoost`: Average Precision 기준 positive class ranking 강점
 - `CatBoost`: ROC-AUC와 F1에서 매우 경쟁력 있는 tabular baseline
-- `LSTM`: sequence-only 모델 중 기준점 역할
+- `LSTM`: sequence-only deep learning 기준점
 
-test set에서 실제 지연 고객은 1,189명이었고, HybridGRU는 그중 829명을 탐지했다. 따라서 Recall은 `829 / 1,189 = 0.6972`다. Precision은 0.4116으로 단독으로 보면 낮아 보일 수 있지만, 전체 지연 고객 비율이 18.65%라는 점을 함께 보면 모델이 위험하다고 고른 고객군에는 실제 지연 고객이 평균보다 약 2.2배 더 많이 포함되어 있다.
+HybridGRU가 모든 지표에서 압도적으로 우수한 것은 아닙니다. 다만 이번 프로젝트의 핵심 가설인 **고객 요약 feature와 최근 주문 sequence의 결합**을 가장 직접적으로 구현했고, F1-score 기준 가장 균형적인 결과를 보였습니다.
 
-따라서 이 결과는 완성된 운영 모델이라기보다, **고빈도 고객의 주문 이력만으로 재구매 지연 위험 고객군을 우선순위화할 가능성**을 보인 결과로 해석한다.
+## 9. HybridGRU 해석
 
-## 10. 최종 결론
+HybridGRU는 다음 두 branch를 결합합니다.
 
-이 프로젝트는 Instacart 주문 이력에서 고빈도 고객을 정의하고, target 이전 이력만으로 다음 주문의 지연 위험을 예측하는 구조를 만들었다. 집계형 tabular baseline, sequence-only 딥러닝 모델, hybrid 딥러닝 모델을 비교한 결과, HybridGRU는 고객 요약 feature와 최근 주문 sequence를 함께 사용해 sequence-only 모델보다 개선된 결과를 보였고, 같은 split에서 F1-score 기준 가장 균형적인 성능을 보였다.
+```text
+최근 주문 sequence -> GRU encoder -> sequence embedding
+고객 요약 feature -> MLP encoder -> tabular embedding
+sequence embedding + tabular embedding -> final delay_risk score
+```
 
-다만 CatBoost와의 차이는 크지 않으므로 `HybridGRU가 압도적으로 우수하다`고 해석하지 않는다. 더 안전한 결론은 다음과 같다.
+sequence-only 최고 모델인 LSTM의 F1-score는 0.4569였고, HybridGRU의 F1-score는 0.5176이었습니다.
+즉 최근 주문 흐름만 보는 것보다, 고객 요약 feature를 함께 보는 것이 더 나은 결과를 보였습니다.
 
-> HybridGRU는 이번 문제의 핵심 가설인 “고객의 장기 구매 성향과 최근 주문 흐름을 함께 본다”는 구조를 가장 직접적으로 구현했고, 같은 split에서 F1-score 기준 가장 균형적인 결과를 보여 딥러닝 최종 후보로 선정했다.
+## 10. Confusion Matrix와 운영 관점 해석
 
-활용 측면에서는 모든 고빈도 고객에게 동일하게 쿠폰이나 알림을 보내기보다, 위험 score가 높은 고객부터 먼저 확인하고 고객 유지 전략을 적용하는 방식으로 사용할 수 있다.
+test set에서 실제 지연 고객은 1,189명이었고, HybridGRU는 그중 829명을 탐지했습니다.
 
-## 11. 한계와 향후 개선 방향
+```text
+Recall = 829 / 1,189 = 0.6972
+```
 
-현재 프로젝트의 한계와 개선 방향은 아래처럼 정리한다.
+![HybridGRU confusion matrix](./results/final_hybridgru_confusion_matrix.png)
 
-- 현재 split은 stratified random split이다. 사용자 중복 누수는 줄였지만, 실제 서비스 적용을 위해서는 시간 기준 검증이 더 엄격하다.
-- `target_gap > 15`는 q80 기반의 조기 탐지 기준이다. q90인 24일 기준은 더 보수적인 고위험 기준으로 별도 민감도 분석 대상이다.
-- 현재 HybridGRU는 GRU branch와 MLP branch를 결합한 뒤 최종 출력 하나에 대해 loss를 계산하는 single-loss late fusion 구조다.
-- 교수님 피드백을 반영하면, GRU branch와 MLP branch 각각에 보조 prediction head와 auxiliary loss를 추가하는 구조가 더 엄밀하다.
-- Instacart에는 상품 정보도 있으나, 현재 모델은 주문 간격과 주문 순서 정보에 집중했다. 이후 basket size, product diversity, reorder ratio 같은 상품 기반 feature를 추가할 수 있다.
+Precision은 0.4116입니다. 단독으로 보면 낮아 보일 수 있지만, 전체 지연 고객 비율이 18.65%라는 점을 함께 봐야 합니다.
 
-모델 설계 피드백과 auxiliary-loss 개선안은 [`docs/model_design_feedback.md`](./docs/model_design_feedback.md)에 따로 정리했다.
+```text
+0.4116 / 0.1865 ≈ 2.2
+```
 
-## 12. 실행 방법
+즉 모델이 위험하다고 고른 고객군에는 실제 지연 고객이 평균보다 약 2.2배 더 많이 포함되어 있었습니다. 이 결과는 완성된 운영 모델이라기보다, **고객 유지 전략 후보를 우선순위화하는 risk score 모델**로 해석했습니다.
 
-현재 저장소는 발표용 산출물과 실험 코드가 함께 들어 있는 작업 폴더 상태다. GitHub 업로드 전에는 [`docs/github_upload_checklist.md`](./docs/github_upload_checklist.md)를 기준으로 파일을 선별하는 것이 좋다.
+## 11. 추가 분석
 
-권장 실행 흐름은 아래와 같다.
+최종 결과 외에도 아래 분석을 수행했습니다.
 
-1. [`notebooks/01_prepare_data.ipynb`](./notebooks/01_prepare_data.ipynb)에서 문제 정의, 시점 분리, split 규칙을 확인한다.
-2. `python train_tabular_baselines.py`로 tabular baseline 결과를 생성한다.
-3. `python train_deep_sequence_models.py`로 sequence-only deep learning 결과를 생성한다.
-4. `python train_hybrid_deep_models.py`로 hybrid deep learning 결과를 생성한다.
-5. `python summarize_final_model_results.py`로 최종 비교 파일을 생성한다.
-6. `python sensitivity_delay_threshold.py`로 q80 기준 15일과 q90 기준 24일 라벨 민감도 분석을 생성한다.
-7. `python analyze_hybridgru_errors.py`로 HybridGRU 오류 분석을 생성한다.
+| 분석 | 파일 |
+| --- | --- |
+| q80/q90 라벨 기준 민감도 분석 | [`results/delay_threshold_sensitivity_summary.md`](./results/delay_threshold_sensitivity_summary.md) |
+| q90 HybridGRU sensitivity | [`results/q90_hybridgru_sensitivity_summary.md`](./results/q90_hybridgru_sensitivity_summary.md) |
+| HybridGRU 오류 분석 | [`results/hybridgru_error_analysis_summary.md`](./results/hybridgru_error_analysis_summary.md) |
+| feature importance | [`results/feature_importance_mlp.csv`](./results/feature_importance_mlp.csv) |
+| feature ablation | [`results/feature_ablation_summary.md`](./results/feature_ablation_summary.md) |
 
-## 13. 파일 구조
+ROC curve와 PR curve도 함께 저장했습니다.
+
+![ROC curve](./results/final_selected_roc_curve.png)
+
+![PR curve](./results/final_selected_pr_curve.png)
+
+## 12. 한계와 개선 방향
+
+현재 프로젝트의 한계는 아래와 같습니다.
+
+- 현재 split은 stratified random split이다. 실제 서비스 적용에는 시간 기준 검증이 더 엄격하다.
+- `target_gap > 15`는 q80 기반의 조기 탐지 기준이다. 고객별 구매 주기를 반영한 개인화 기준은 추가 실험이 필요하다.
+- 현재 HybridGRU는 최종 fusion output 하나에 대해서만 loss를 계산하는 single-loss late fusion 구조다.
+- Instacart에는 상품 정보도 있지만, 이번 프로젝트는 주문 간격과 주문 순서 정보에 집중했다.
+
+발표 후 받은 모델 설계 피드백을 반영하면, GRU branch와 MLP branch 각각에 보조 prediction head와 auxiliary loss를 추가하는 구조가 더 엄밀합니다. 자세한 내용은 [`docs/model_design_feedback.md`](./docs/model_design_feedback.md)에 정리했습니다.
+
+## 13. 실행 방법
+
+```bash
+pip install -r requirements.txt
+```
+
+주요 실행 순서는 아래와 같습니다.
+
+```bash
+python train_tabular_baselines.py
+python train_deep_sequence_models.py
+python train_hybrid_deep_models.py
+python summarize_final_model_results.py
+python analyze_hybridgru_errors.py
+```
+
+노트북 설명은 [`notebooks/`](./notebooks/) 폴더에서 확인할 수 있습니다.
+
+## 14. 저장소 구조
 
 ```text
 .
@@ -200,63 +258,30 @@ test set에서 실제 지연 고객은 1,189명이었고, HybridGRU는 그중 82
 |-- summarize_final_model_results.py
 |-- analyze_hybridgru_errors.py
 |-- sensitivity_delay_threshold.py
-|-- feature_ablation.py
-|-- feature_importance.py
 |-- notebooks/
 |   |-- 01_prepare_data.ipynb
 |   |-- 02_train_mlp.ipynb
 |   |-- 03_train_lstm.ipynb
 |   `-- 04_compare_models.ipynb
-|-- presentation/
-|   |-- final_repurchase_delay_presentation_v14.pptx
-|   |-- 딥러닝_프로젝트_발표자료_이민성팀.pdf
-|   `-- final_presentation_speaker_script_v14.docx
-|-- make_presentation_figures.py
 |-- docs/
 |   |-- final_project_summary.md
-|   |-- github_upload_checklist.md
-|   |-- model_design_feedback.md
-|   |-- repository_audit.md
 |   |-- preprocessing_summary.md
-|   |-- midterm_presentation_qna.md
-|   |-- lstm_reference_note.md
-|   |-- presentation_figure_guide.md
-|   `-- project_status_share.md
-`-- results/
-    |-- README.md
-    |-- final_model_comparison.csv
-    |-- final_model_comparison_summary.md
-    |-- final_model_comparison.png
-    |-- final_selected_roc_curve.png
-    |-- final_selected_pr_curve.png
-    |-- final_hybridgru_confusion_matrix.png
-    |-- hybrid_deep_model_comparison.csv
-    |-- hybrid_deep_model_summary.md
-    |-- deep_sequence_model_comparison.csv
-    |-- deep_sequence_model_summary.md
-    |-- delay_threshold_sensitivity.csv
-    |-- q90_hybridgru_sensitivity_summary.md
-    |-- hybridgru_error_analysis_summary.md
-    |-- feature_importance_mlp.csv
-    `-- feature_ablation_results.csv
+|   |-- model_design_feedback.md
+|   `-- github_upload_checklist.md
+|-- results/
+|   |-- final_model_comparison.csv
+|   |-- final_model_comparison.png
+|   |-- final_selected_roc_curve.png
+|   |-- final_selected_pr_curve.png
+|   `-- final_hybridgru_confusion_matrix.png
+`-- presentation/
+    |-- 딥러닝_프로젝트_발표자료_이민성팀.pdf
+    |-- final_repurchase_delay_presentation_v14.pptx
+    `-- final_presentation_speaker_script_v14.docx
 ```
 
-## 발표 준비 메모
+## 15. 프로젝트를 통해 확인한 점
 
-발표 슬라이드에는 최소한 아래 숫자와 그래프가 들어가는 것이 좋다.
+이 프로젝트에서 가장 중요했던 점은 단순히 모델 하나의 성능을 높이는 것이 아니라, **문제 정의, feature-label 시점 분리, baseline 비교, sequence 모델 확장, hybrid 모델 비교, 오류 분석**까지 하나의 예측 프로젝트 흐름으로 연결한 것입니다.
 
-- high-frequency threshold = 24
-- 운영 기준 delay threshold = 15  
-- 현재 target gap 분위수 = q80 15 / q90 24 / q95 30
-- 데이터 규모 = 전체 고객 206,209명 / 전체 주문 3,421,083건 / 최종 샘플 42,499명
-- 현재 가공 데이터 기준 positive ratio = 18.65%
-- split 규모 = train 29,749 / validation 6,375 / test 6,375
-- split 방식 = user-level stratified train / val / test
-- ROC curve
-- PR curve
-- 최종 모델 비교 표
-- tabular model comparison 그래프
-- MLP threshold 비교 그래프
-- feature importance 상위 feature
-
-세부 근거와 라벨 기준 선택 이유는 [`docs/preprocessing_summary.md`](./docs/preprocessing_summary.md)와 [`docs/repository_audit.md`](./docs/repository_audit.md)에 정리했다. 발표 예상 질문 답변은 [`docs/midterm_presentation_qna.md`](./docs/midterm_presentation_qna.md)에 따로 정리했고, 팀원 공유용 전체 현황은 [`docs/project_status_share.md`](./docs/project_status_share.md)에서 빠르게 확인할 수 있다. 현재 LSTM 참고 실험의 위치와 한계는 [`docs/lstm_reference_note.md`](./docs/lstm_reference_note.md)에 따로 정리했다.
+최종적으로 HybridGRU는 압도적인 우위를 보인 모델은 아니지만, 고빈도 고객의 장기 구매 성향과 최근 주문 흐름을 함께 보는 구조가 sequence-only 모델보다 더 효과적일 수 있음을 확인했습니다.
